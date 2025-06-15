@@ -10,39 +10,30 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 const io = socketio(server);
 
-// Store users and their last location
-const users = {};
+const locations = {}; // Store latest user locations
 
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
-    // Assign random username and store
-    const username = "User-" + Math.floor(Math.random() * 1000);
-    users[socket.id] = { username };
-
-    // Send all existing users' location to the newly connected client
-    const existingUsers = [];
-    for (let id in users) {
-        if (users[id].location && id !== socket.id) {
-            existingUsers.push({ id, username: users[id].username, ...users[id].location });
-        }
+    // Send existing users' locations to the new user
+    for (const id in locations) {
+        socket.emit("receive-location", {
+            id,
+            ...locations[id],
+        });
     }
-    socket.emit("existing-users", existingUsers);
 
-    // When user sends location
-    socket.on("send-location", (location) => {
-        users[socket.id].location = location;
+    socket.on("send-location", (data) => {
+        locations[socket.id] = data;
         io.emit("receive-location", {
             id: socket.id,
-            username: users[socket.id].username,
-            ...location,
+            ...data,
         });
     });
 
     socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-        delete users[socket.id];
         io.emit("user-disconnected", socket.id);
+        delete locations[socket.id];
     });
 });
 

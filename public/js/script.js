@@ -1,32 +1,28 @@
 const socket = io();
-const map = L.map("map").setView([0, 0], 20);
 
-// Add OpenStreetMap tiles
+// Ask for user's name
+let username = prompt("Enter your name:");
+socket.emit("register-user", username || "Anonymous");
+
+const map = L.map("map").setView([0, 0], 16);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "Ritik",
 }).addTo(map);
 
-// Define marker icon style
-const customIcon = L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/252/252025.png",
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-});
-
-// Track user data
+// Store markers and colors
 const markers = {};
-const paths = {};
+const colors = {};
+const getRandomColor = () => "#" + Math.floor(Math.random() * 16777215).toString(16);
 
-// Watch and send location
+// Track and send location
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude } = position.coords;
             socket.emit("send-location", { latitude, longitude });
+            map.setView([latitude, longitude], 16);
         },
-        (error) => {
-            console.log(error);
-        },
+        (error) => console.log(error),
         {
             enableHighAccuracy: true,
             timeout: 5000,
@@ -35,29 +31,31 @@ if (navigator.geolocation) {
     );
 }
 
-// Receive and render location
+// Handle location from other users
 socket.on("receive-location", (data) => {
-    const { id, latitude, longitude } = data;
+    const { id, latitude, longitude, username } = data;
 
-    // Center the map on the latest location
-    map.setView([latitude, longitude]);
+    // Assign a random color if new
+    if (!colors[id]) {
+        colors[id] = getRandomColor();
+    }
 
-    // Marker exists
+    // If marker exists, update position
     if (markers[id]) {
-        // Add point to polyline path
-        if (!paths[id]) {
-            paths[id] = L.polyline([], { color: "blue" }).addTo(map);
-        }
-        paths[id].addLatLng([latitude, longitude]);
-
-        // Update marker position
         markers[id].setLatLng([latitude, longitude]);
     } else {
-        // First-time marker
-        markers[id] = L.marker([latitude, longitude], { icon: customIcon }).addTo(map);
+        // Create a colored circle + name label
+        const marker = L.circleMarker([latitude, longitude], {
+            radius: 8,
+            color: colors[id],
+            fillColor: colors[id],
+            fillOpacity: 0.9,
+        }).addTo(map);
 
-        // Initialize polyline
-        paths[id] = L.polyline([[latitude, longitude]], { color: "blue" }).addTo(map);
+        // Add label above marker
+        marker.bindTooltip(username, { permanent: true, direction: "top", className: "user-label" });
+
+        markers[id] = marker;
     }
 });
 
@@ -66,9 +64,6 @@ socket.on("user-disconnected", (id) => {
     if (markers[id]) {
         map.removeLayer(markers[id]);
         delete markers[id];
-    }
-    if (paths[id]) {
-        map.removeLayer(paths[id]);
-        delete paths[id];
+        delete colors[id];
     }
 });

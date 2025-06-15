@@ -1,18 +1,24 @@
 const socket = io();
 
-// Ask for user's name
-let username = prompt("Enter your name:");
-socket.emit("register-user", username || "Anonymous");
+// Generate a simple random username (no prompt)
+const username = "User-" + Math.floor(Math.random() * 1000);
+socket.emit("register-user", username);
 
 const map = L.map("map").setView([0, 0], 16);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "Ritik",
 }).addTo(map);
 
-// Store markers and colors
 const markers = {};
 const colors = {};
 const getRandomColor = () => "#" + Math.floor(Math.random() * 16777215).toString(16);
+
+// Store your own socket id
+let myId = null;
+
+socket.on("connect", () => {
+    myId = socket.id;
+});
 
 // Track and send location
 if (navigator.geolocation) {
@@ -20,7 +26,12 @@ if (navigator.geolocation) {
         (position) => {
             const { latitude, longitude } = position.coords;
             socket.emit("send-location", { latitude, longitude });
-            map.setView([latitude, longitude], 16);
+
+            // Center map only on YOUR location updates
+            if (myId) {
+                // We can be sure this is your own update
+                map.setView([latitude, longitude], 16);
+            }
         },
         (error) => console.log(error),
         {
@@ -31,20 +42,17 @@ if (navigator.geolocation) {
     );
 }
 
-// Handle location from other users
+// Receive location of all users
 socket.on("receive-location", (data) => {
     const { id, latitude, longitude, username } = data;
 
-    // Assign a random color if new
     if (!colors[id]) {
         colors[id] = getRandomColor();
     }
 
-    // If marker exists, update position
     if (markers[id]) {
         markers[id].setLatLng([latitude, longitude]);
     } else {
-        // Create a colored circle + name label
         const marker = L.circleMarker([latitude, longitude], {
             radius: 8,
             color: colors[id],
@@ -52,14 +60,13 @@ socket.on("receive-location", (data) => {
             fillOpacity: 0.9,
         }).addTo(map);
 
-        // Add label above marker
-        marker.bindTooltip(username, { permanent: true, direction: "top", className: "user-label" });
+        // Remove username label if you want:
+        // marker.bindTooltip(username, { permanent: true, direction: "top", className: "user-label" });
 
         markers[id] = marker;
     }
 });
 
-// Remove marker on disconnect
 socket.on("user-disconnected", (id) => {
     if (markers[id]) {
         map.removeLayer(markers[id]);

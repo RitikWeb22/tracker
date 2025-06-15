@@ -12,11 +12,11 @@ body {
   width: 100%;
   height: 100%;
 }
-.leaflet-tooltip.user-label {
+/* .leaflet-tooltip.user-label {
   background-color: transparent;
   color: black;
   font-weight: bold;
   font-size: 14px;
   border: none;
   box-shadow: none;
-}
+} */

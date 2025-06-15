@@ -6,23 +6,38 @@ const markers = {};
 const distanceLabels = {}; // store distance texts
 
 // Haversine Formula for distance
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000; // Radius of Earth in meters
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // distance in meters
-}
+// function calculateDistance(lat1, lon1, lat2, lon2) {
+//     const R = 6371000; // Radius of Earth in meters
+//     const dLat = ((lat2 - lat1) * Math.PI) / 180;
+//     const dLon = ((lon2 - lon1) * Math.PI) / 180;
+//     const a =
+//         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+//         Math.cos((lat1 * Math.PI) / 180) *
+//         Math.cos((lat2 * Math.PI) / 180) *
+//         Math.sin(dLon / 2) * Math.sin(dLon / 2);
+//     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+//     return R * c; // distance in meters
+// }
 
-const map = L.map("map").setView([0, 0], 16);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "Ritik",
+const map = L.map("map", {
+    center: [0, 0],
+    zoom: 16,
+    minZoom: 3,
+    maxZoom: 19,
+    zoomControl: false,
+    worldCopyJump: true,
+});
+
+// Esri Satellite Layer
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Tiles © Esri | Map by Ritik",
+    maxZoom: 19,
+    minZoom: 3,
+    errorTileUrl: "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg" // fallback tile
 }).addTo(map);
+
+// Zoom Control bottom right
+L.control.zoom({ position: "bottomright" }).addTo(map);
 
 socket.on("connect", () => {
     myId = socket.id;
